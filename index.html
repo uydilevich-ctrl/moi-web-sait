@@ -49,7 +49,7 @@
     <p class="eyebrow">Услуги</p>
     <h2>От идеи до готового<br>digital-образа</h2>
     <ol class="services">
-      <li><span class="num">01</span><h3>AI-контент</h3><p>Визуальный контент для бренда: единый стиль, узнаваемая подача, готовые материалы под ваши задачи.</p></li>
+      <li><span class="num">01</span><h3>Карточки для маркетплейсов</h3><p>Серия слайдов в едином стиле для Wildberries и Ozon: главный слайд, детали, размеры, товар в жизни.</p></li>
       <li><span class="num">02</span><h3>AI-фотографии и визуалы</h3><p>Изображения для каталогов, рекламы, обложек и лендингов, без студийных съёмок.</p></li>
       <li><span class="num">03</span><h3>AI-видео и анимация</h3><p>Короткие ролики и анимации, которые оживляют продукт и удерживают внимание.</p></li>
       <li><span class="num">04</span><h3>Контент для соцсетей</h3><p>Сториз, рилс, карусели и оформление профиля в одном стиле.</p></li>
@@ -63,12 +63,25 @@
   <div class="wrap">
     <p class="eyebrow">Работы</p>
     <h2>Избранные проекты</h2>
-    <div class="works">
-      <figure class="work work-tall"><div class="ph"></div><figcaption>AI-визуалы<span>скоро</span></figcaption></figure>
-      <figure class="work"><div class="ph"></div><figcaption>AI-видео<span>скоро</span></figcaption></figure>
-      <figure class="work"><div class="ph"></div><figcaption>Сайт<span>скоро</span></figcaption></figure>
-      <figure class="work"><div class="ph"></div><figcaption>Контент для соцсетей<span>скоро</span></figcaption></figure>
+    <div class="work-head">
+      <h3>Карточки для маркетплейсов</h3>
+      <p>Wildberries · Ozon · серия слайдов в едином стиле</p>
     </div>
+    <div class="projects">
+      <button class="project" type="button" data-project="bag">
+        <img src="assets/work/bag-1.jpg" alt="Карточка товара: сумка кросс-боди из натуральной кожи" loading="lazy" width="360" height="480">
+        <span class="project-meta"><b>Сумка кросс-боди</b><span>4 слайда</span></span>
+      </button>
+      <button class="project" type="button" data-project="candle">
+        <img src="assets/work/candle-1.jpg" alt="Карточка товара: ароматическая свеча «Тихий вечер»" loading="lazy" width="360" height="480">
+        <span class="project-meta"><b>Ароматическая свеча</b><span>4 слайда</span></span>
+      </button>
+      <button class="project" type="button" data-project="sweater">
+        <img src="assets/work/sweater-1.jpg" alt="Карточка товара: свитер оверсайз" loading="lazy" width="360" height="480">
+        <span class="project-meta"><b>Свитер оверсайз</b><span>4 слайда</span></span>
+      </button>
+    </div>
+    <p class="work-note">Скоро здесь появятся AI-видео, сайты и контент для соцсетей.</p>
   </div>
 </section>
 
@@ -120,6 +133,14 @@
   <div><strong>MARUDI</strong><span>Creative Digital Studio</span></div>
   <small>© <span id="y"></span> MARUDI</small>
 </footer>
+
+<dialog class="lightbox" id="lightbox" aria-labelledby="lightbox-title">
+  <div class="lightbox-head">
+    <div><p class="eyebrow">Карточки для маркетплейсов</p><h3 id="lightbox-title"></h3></div>
+    <button class="lightbox-close" type="button" aria-label="Закрыть">×</button>
+  </div>
+  <div class="lightbox-slides"></div>
+</dialog>
 
 <script src="script.js"></script>
 </body>
