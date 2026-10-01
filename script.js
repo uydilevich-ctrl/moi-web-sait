@@ -13,7 +13,7 @@ const PROJECTS={
   bag:{eyebrow:MARKET,title:'Сумка кросс-боди',items:[['bag-1.jpg','Главный слайд'],['bag-2.jpg','Детали'],['bag-3.jpg','Размеры'],['bag-4.jpg','На модели']]},
   candle:{eyebrow:MARKET,title:'Ароматическая свеча',items:[['candle-1.jpg','Главный слайд'],['candle-2.jpg','Ноты аромата'],['candle-3.jpg','Характеристики'],['candle-4.jpg','Атмосфера']]},
   sweater:{eyebrow:MARKET,title:'Свитер оверсайз',items:[['sweater-1.jpg','Главный слайд'],['sweater-2.jpg','Фактура'],['sweater-3.jpg','Размеры'],['sweater-4.jpg','На модели']]},
-  cards:{eyebrow:'Цифровые открытки',title:'Красивые цифровые подарки',items:[['cards-cover.webp','Обложка серии'],['cards-birthday-her.webp','С Днём рождения'],['cards-birthday-him.webp','С Днём рождения, для него'],['cards-mom.webp','Любимой маме'],['cards-baby.webp','С рождением малыша']]}
+  cards:{eyebrow:'Цифровые открытки',title:'Все открытки',items:[['cards-cover.webp','Обложка серии'],['cards-birthday-her.webp','С Днём рождения'],['cards-birthday-him.webp','С Днём рождения, для него'],['cards-mom.webp','Любимой маме'],['cards-baby.webp','С рождением малыша'],['cards-newyear-cozy.webp','С наступающим Новым годом'],['cards-newyear-gold.webp','С Новым годом'],['cards-partners-navy.webp','Партнёрам, синяя'],['cards-partners-gold.webp','Партнёрам, золотая'],['cards-kids.webp','Детский день рождения']]}
 };
 const box=document.getElementById('lightbox');
 const boxSlides=box.querySelector('.lightbox-slides');
@@ -21,7 +21,7 @@ document.querySelectorAll('[data-project]').forEach(btn=>btn.addEventListener('c
   const p=PROJECTS[btn.dataset.project];
   box.querySelector('#lightbox-eyebrow').textContent=p.eyebrow;
   box.querySelector('#lightbox-title').textContent=p.title;
-  boxSlides.classList.toggle('five',p.items.length===5);
+  boxSlides.classList.toggle('five',p.items.length>=5);
   boxSlides.innerHTML=p.items.map(([src,cap])=>`<figure><img src="assets/work/${src}" alt="${p.title}: ${cap}"><figcaption>${cap}</figcaption></figure>`).join('');
   box.showModal();
   // на телефоне сразу прокручиваем к выбранной работе
