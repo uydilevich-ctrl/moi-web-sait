@@ -1,1 +1,1 @@
-{ "type": "module", "private": true, "scripts": { "test": "node tests/test.mjs && node tests/test2.mjs" } }
+{ "type": "module", "private": true, "scripts": { "test": "node tests/test.mjs && node tests/test2.mjs && node tests/test3.mjs" } }
