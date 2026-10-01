@@ -5,7 +5,7 @@ document.getElementById('y').textContent=new Date().getFullYear();
 // контакты пока не заполнены: заглушки не ведут никуда
 document.querySelectorAll('[data-todo]').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
-document.querySelectorAll('.section h2,.services li,.project,.card,.steps li,.about-text,.links').forEach(el=>{el.classList.add('reveal');io.observe(el)});
+document.querySelectorAll('.section h2,.services li,.project,.card,.video-tile,.steps li,.about-text,.links').forEach(el=>{el.classList.add('reveal');io.observe(el)});
 
 // Портфолио: окно со всеми работами серии
 const MARKET='Карточки для маркетплейсов';
@@ -21,6 +21,7 @@ document.querySelectorAll('[data-project]').forEach(btn=>btn.addEventListener('c
   const p=PROJECTS[btn.dataset.project];
   box.querySelector('#lightbox-eyebrow').textContent=p.eyebrow;
   box.querySelector('#lightbox-title').textContent=p.title;
+  boxSlides.classList.remove('single');
   boxSlides.classList.toggle('five',p.items.length>=5);
   boxSlides.innerHTML=p.items.map(([src,cap])=>`<figure><img src="assets/work/${src}" alt="${p.title}: ${cap}"><figcaption>${cap}</figcaption></figure>`).join('');
   box.showModal();
@@ -28,5 +29,19 @@ document.querySelectorAll('[data-project]').forEach(btn=>btn.addEventListener('c
   const i=+btn.dataset.index||0;
   if(i)boxSlides.children[i].scrollIntoView({block:'nearest',inline:'center'});
 }));
+// Видео: открываем крупно со звуком
+document.querySelectorAll('[data-video]').forEach(btn=>btn.addEventListener('click',()=>{
+  box.querySelector('#lightbox-eyebrow').textContent='AI-видео';
+  box.querySelector('#lightbox-title').textContent=btn.dataset.title;
+  boxSlides.classList.remove('five');boxSlides.classList.add('single');
+  const v=btn.dataset.video;
+  boxSlides.innerHTML=`<video controls autoplay playsinline poster="assets/work/${v}.jpg"><source src="assets/work/${v}.mp4" type='video/mp4; codecs="avc1.64001F, mp4a.40.2"'><source src="assets/work/${v}.webm" type='video/webm; codecs="vp9, opus"'></video>`;
+  box.showModal();
+}));
+// Превью роликов играют без звука, только пока видны на экране
+const vio=new IntersectionObserver(es=>es.forEach(e=>{const v=e.target;if(e.isIntersecting){v.play().catch(()=>{})}else v.pause()}),{threshold:.4});
+document.querySelectorAll('.video-tile video').forEach(v=>vio.observe(v));
 box.querySelector('.lightbox-close').addEventListener('click',()=>box.close());
+// при закрытии окна останавливаем видео
+box.addEventListener('close',()=>{boxSlides.classList.remove('single');boxSlides.innerHTML=''});
 box.addEventListener('click',e=>{if(e.target===box)box.close()});
