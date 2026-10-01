@@ -107,11 +107,12 @@ h2{font-size:clamp(34px,4.6vw,60px);margin-bottom:64px}
 .lightbox-slides img{display:block;width:100%;height:auto}
 .lightbox-slides figcaption{margin-top:10px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 
-.steps{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:32px;counter-reset:s}
+.steps{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:48px 40px;counter-reset:s}
 .steps li{counter-increment:s;border-top:1px solid var(--graphite);padding-top:22px}
 .steps li::before{content:"0" counter(s);display:block;font-size:11px;letter-spacing:.2em;color:var(--champagne);font-weight:500;margin-bottom:26px}
 .steps span{font-family:var(--serif);font-size:30px;display:block;margin-bottom:10px}
 .steps p{font-size:14px;color:var(--muted)}
+.steps p a{color:var(--graphite);border-bottom:1px solid rgba(27,27,26,.3)}
 
 .about{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
 .about h2{margin-bottom:40px}
