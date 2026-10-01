@@ -45,3 +45,33 @@ box.querySelector('.lightbox-close').addEventListener('click',()=>box.close());
 // при закрытии окна останавливаем видео
 box.addEventListener('close',()=>{boxSlides.classList.remove('single');boxSlides.innerHTML=''});
 box.addEventListener('click',e=>{if(e.target===box)box.close()});
+
+// Главный экран: заголовок виден, пока в видео пустой фон с точкой
+// (начало и конец петли), и по буквам растворяется на время показа работ.
+const hero=document.querySelector('.hero');
+const heroVideo=hero.querySelector('.hero-video');
+const h1=hero.querySelector('h1');
+const heroLabel=h1.innerText.replace(/\s+/g,' ').trim();
+let n=0;
+(function split(node){
+  [...node.childNodes].forEach(ch=>{
+    if(ch.nodeType===3){
+      const frag=document.createDocumentFragment();
+      [...ch.textContent].forEach(c=>{
+        if(c===' '){frag.append(' ');return}
+        const s=document.createElement('span');s.className='ch';s.style.setProperty('--i',n++);s.textContent=c;frag.append(s);
+      });
+      ch.replaceWith(frag);
+    }else if(ch.nodeName!=='BR')split(ch);
+  });
+})(h1);
+h1.setAttribute('aria-label',heroLabel);
+hero.querySelectorAll('.eyebrow,.sub,.btn').forEach(el=>el.classList.add('fade'));
+const SHOW_UNTIL=2.2, SHOW_FROM=9.3;   // секунды в 10-секундной петле
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function syncHeroText(){
+  const t=heroVideo.currentTime, playing=!heroVideo.paused&&heroVideo.readyState>2;
+  hero.classList.toggle('text-off',!reduce&&playing&&t>SHOW_UNTIL&&t<SHOW_FROM);
+  requestAnimationFrame(syncHeroText);
+}
+requestAnimationFrame(syncHeroText);
