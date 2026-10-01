@@ -9,9 +9,16 @@
 //  BOT_TOKEN       — токен от @BotFather (тип Secret)
 //  WEBHOOK_SECRET  — любая длинная строка из букв и цифр (тип Secret)
 //  ADMIN_ID        — числовой id Марии в Telegram (бот подскажет его по команде /myid)
+//
+// Публикации в канал по расписанию:
+//  - очередь постов лежит на сайте в bot/posts.json;
+//  - Cron Trigger «*/15 * * * *» раз в 15 минут публикует посты, время которых
+//    наступило за прошедшие 15 минут; бот должен быть администратором канала.
 
 const SITE = 'https://uydilevich-ctrl.github.io/moi-web-sait/';
 const CHANNEL = 'https://t.me/marudi_studio';
+const CHANNEL_ID = '@marudi_studio';
+const CRON_STEP_MS = 15 * 60 * 1000;
 
 const TEXT = {
   start:
@@ -37,7 +44,8 @@ const TEXT = {
   received: 'Спасибо, сообщение получено! Мария ответит в ближайшее время 🤍',
   adminHelp:
     'Вы администратор бота MARUDI.\n\n' +
-    'Сообщения клиентов будут приходить сюда. Чтобы ответить клиенту, нажмите «Ответить» на его сообщении и напишите текст — бот перешлёт его от имени MARUDI.',
+    'Сообщения клиентов будут приходить сюда. Чтобы ответить клиенту, нажмите «Ответить» на его сообщении и напишите текст — бот перешлёт его от имени MARUDI.\n\n' +
+    'Команда /queue покажет посты, запланированные в канал.',
   replyHint: 'Чтобы ответить клиенту, нажмите «Ответить» на его сообщении.',
   replyFailed: 'Не получилось отправить ответ: клиент мог заблокировать бота.',
   replySent: '✓ Отправлено',
@@ -94,7 +102,70 @@ export default {
 
     return new Response('MARUDI bot');
   },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(publishDue(env, event.scheduledTime));
+  },
 };
+
+async function loadPosts() {
+  const res = await fetch(`${SITE}bot/posts.json?t=${Date.now()}`, { cf: { cacheTtl: 0 } });
+  if (!res.ok) throw new Error(`posts.json: HTTP ${res.status}`);
+  return res.json();
+}
+
+// Публикует посты, время которых попало в окно (now − 15 мин; now].
+export async function publishDue(env, now) {
+  const posts = await loadPosts();
+  const due = posts.filter((p) => {
+    const at = Date.parse(p.at);
+    return at > now - CRON_STEP_MS && at <= now;
+  });
+  for (const post of due) {
+    const res = await publishPost(env, post);
+    if (env.ADMIN_ID) {
+      const text = res.ok
+        ? `📣 Опубликовано в канале: «${post.title || post.id}»`
+        : `Не получилось опубликовать «${post.title || post.id}»: ${res.description}`;
+      await tg(env, 'sendMessage', { chat_id: env.ADMIN_ID, text });
+    }
+  }
+}
+
+export async function publishPost(env, post) {
+  const chat = env.CHANNEL_ID || CHANNEL_ID;
+  const media = (post.media || []).map((m) => ({ type: m.type, media: new URL(m.src, SITE).href }));
+  const fits = (post.text || '').length <= 1024;
+  let res;
+
+  if (media.length === 0) {
+    res = await tg(env, 'sendMessage', { chat_id: chat, text: post.text });
+  } else if (media.length === 1) {
+    const [m] = media;
+    const method = m.type === 'video' ? 'sendVideo' : 'sendPhoto';
+    res = await tg(env, method, { chat_id: chat, [m.type]: m.media, ...(fits ? { caption: post.text } : {}) });
+  } else {
+    if (fits) media[0].caption = post.text;
+    res = await tg(env, 'sendMediaGroup', { chat_id: chat, media });
+  }
+  if (!res.ok) return res;
+  if (!fits) {
+    const t = await tg(env, 'sendMessage', { chat_id: chat, text: post.text });
+    if (!t.ok) return t;
+  }
+
+  if (post.pin) {
+    const first = Array.isArray(res.result) ? res.result[0] : res.result;
+    await tg(env, 'pinChatMessage', { chat_id: chat, message_id: first.message_id, disable_notification: true });
+  }
+  return res;
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleString('ru-RU', {
+    timeZone: 'Europe/Moscow', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+  });
+}
 
 export async function handle(update, env) {
   const adminId = String(env.ADMIN_ID || '');
@@ -160,6 +231,15 @@ async function toAdmin(msg, env, adminId) {
 }
 
 async function fromAdmin(msg, env) {
+  if (msg.text === '/queue') {
+    const now = Date.now();
+    const next = (await loadPosts()).filter((p) => Date.parse(p.at) > now).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+    const text = next.length
+      ? 'Запланировано в канал:\n\n' + next.map((p) => `• ${fmtDate(p.at)} — ${p.title || p.id}`).join('\n')
+      : 'Запланированных постов нет.';
+    await tg(env, 'sendMessage', { chat_id: msg.chat.id, text });
+    return;
+  }
   const r = msg.reply_to_message;
   const m = r && TAG.exec(`${r.text || ''} ${r.caption || ''}`);
   if (!m) {
