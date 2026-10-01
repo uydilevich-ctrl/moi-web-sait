@@ -67,7 +67,7 @@ let n=0;
 })(h1);
 h1.setAttribute('aria-label',heroLabel);
 hero.querySelectorAll('.eyebrow,.sub,.btn').forEach(el=>el.classList.add('fade'));
-const SHOW_UNTIL=2.2, SHOW_FROM=9.3;   // секунды в 10-секундной петле
+const SHOW_UNTIL=3.6, SHOW_FROM=9.3;   // секунды в 10-секундной петле
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function syncHeroText(){
   const t=heroVideo.currentTime, playing=!heroVideo.paused&&heroVideo.readyState>2;
