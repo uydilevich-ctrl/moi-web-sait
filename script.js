@@ -35,7 +35,7 @@ document.querySelectorAll('[data-video]').forEach(btn=>btn.addEventListener('cli
   box.querySelector('#lightbox-title').textContent=btn.dataset.title;
   boxSlides.classList.remove('five');boxSlides.classList.add('single');
   const v=btn.dataset.video;
-  boxSlides.innerHTML=`<video controls autoplay playsinline poster="assets/work/${v}.jpg"><source src="assets/work/${v}.mp4" type='video/mp4; codecs="avc1.64001F, mp4a.40.2"'><source src="assets/work/${v}.webm" type='video/webm; codecs="vp9, opus"'></video>`;
+  boxSlides.innerHTML=`<video controls autoplay playsinline poster="${btn.dataset.poster}"><source src="${v}.mp4" type='video/mp4; codecs="avc1.64001F, mp4a.40.2"'><source src="${v}.webm" type='video/webm; codecs="vp9, opus"'></video>`;
   box.showModal();
 }));
 // Превью роликов играют без звука, только пока видны на экране
