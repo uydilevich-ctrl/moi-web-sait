@@ -35,7 +35,7 @@ let r = await publishPost(env, { text: 'Привет', art: 'свеча на п�
 assert.ok(r.ok); assert.match(r.artNote, /YandexART/);
 const ya = calls.find(c => c[0] === 'ya-start');
 assert.equal(ya[1].modelUri, 'art://F/yandex-art/latest'); assert.equal(ya[2].Authorization, 'Api-Key K');
-assert.match(ya[1].messages[0].text, /свеча на подоконнике.*Без текста/);
+assert.match(ya[1].messages[0].text, /свеча на подоконнике.*«MARUDI».*Других надписей нет/);
 assert.deepEqual(ya[1].generationOptions.aspectRatio, { widthRatio: '4', heightRatio: '5' });
 const sp = calls.find(c => c[0] === 'sendPhoto');
 assert.equal(sp[2], true); assert.ok(sp[1].photo instanceof Blob); assert.equal(sp[1].caption, 'Привет');
