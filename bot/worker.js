@@ -14,11 +14,22 @@
 //  - очередь постов лежит на сайте в bot/posts.json;
 //  - Cron Trigger «*/15 * * * *» раз в 15 минут публикует посты, время которых
 //    наступило за прошедшие 15 минут; бот должен быть администратором канала.
+//
+// Обложки через YandexART (необязательно): если у поста есть поле "art" (описание
+// картинки) и заданы YANDEX_API_KEY (Secret) и YANDEX_FOLDER_ID (Text), бот при публикации
+// рисует новую обложку и ставит её первой вместо готовой. Если не получилось —
+// публикует с готовой обложкой и сообщает Марии.
 
 const SITE = 'https://uydilevich-ctrl.github.io/moi-web-sait/';
 const CHANNEL = 'https://t.me/marudi_studio';
 const CHANNEL_ID = '@marudi_studio';
 const CRON_STEP_MS = 15 * 60 * 1000;
+
+// Общий стиль MARUDI, добавляется к каждому описанию обложки.
+// На обложке — только подпись бренда «MARUDI» (защита от копирования), без заголовков.
+const ART_STYLE =
+  'Премиальная editorial-фотография, минимализм, мягкий свет, тёплая палитра: слоновая кость, кремовый, бежевый, шампань. Внизу по центру небольшая элегантная надпись «MARUDI» тонким шрифтом с засечками, графитового цвета. Других надписей нет. Без людей и неона.';
+const YA = 'https://llm.api.cloud.yandex.net';
 
 const TEXT = {
   start:
@@ -125,7 +136,7 @@ export async function publishDue(env, now) {
     const res = await publishPost(env, post);
     if (env.ADMIN_ID) {
       const text = res.ok
-        ? `📣 Опубликовано в канале: «${post.title || post.id}»`
+        ? `📣 Опубликовано в канале: «${post.title || post.id}»${res.artNote || ''}`
         : `Не получилось опубликовать «${post.title || post.id}»: ${res.description}`;
       await tg(env, 'sendMessage', { chat_id: env.ADMIN_ID, text });
     }
@@ -136,18 +147,40 @@ export async function publishPost(env, post) {
   const chat = env.CHANNEL_ID || CHANNEL_ID;
   const media = (post.media || []).map((m) => ({ type: m.type, media: new URL(m.src, SITE).href }));
   const fits = (post.text || '').length <= 1024;
-  let res;
+  const files = {};
+  let artNote = '';
 
+  if (post.art && env.YANDEX_API_KEY && env.YANDEX_FOLDER_ID) {
+    try {
+      files.art = await yandexArt(env, `${post.art}. ${ART_STYLE}`);
+      const cover = { type: 'photo', media: 'attach://art' };
+      // Новая обложка встаёт на место готовой (первое фото) или добавляется первой.
+      if (media.length && media[0].type === 'photo') media[0] = cover;
+      else media.unshift(cover);
+      artNote = ' (обложка YandexART)';
+    } catch (e) {
+      artNote = ` (YandexART не сработал: ${e.message}; вышла готовая обложка)`;
+    }
+  }
+
+  let res;
   if (media.length === 0) {
     res = await tg(env, 'sendMessage', { chat_id: chat, text: post.text });
   } else if (media.length === 1) {
     const [m] = media;
     const method = m.type === 'video' ? 'sendVideo' : 'sendPhoto';
-    res = await tg(env, method, { chat_id: chat, [m.type]: m.media, ...(fits ? { caption: post.text } : {}) });
+    res = await tg(env, method, { chat_id: chat, [m.type]: m.media, ...(fits ? { caption: post.text } : {}) }, files);
   } else {
     if (fits) media[0].caption = post.text;
-    res = await tg(env, 'sendMediaGroup', { chat_id: chat, media });
+    res = await tg(env, 'sendMediaGroup', { chat_id: chat, media }, files);
   }
+  if (!res.ok && files.art) {
+    // Telegram не принял новую обложку — публикуем с готовой.
+    const retry = await publishPost(env, { ...post, art: undefined });
+    retry.artNote = ` (обложку YandexART Telegram не принял: ${res.description}; вышла готовая обложка)`;
+    return retry;
+  }
+  res.artNote = artNote;
   if (!res.ok) return res;
   if (!fits) {
     const t = await tg(env, 'sendMessage', { chat_id: chat, text: post.text });
@@ -159,6 +192,33 @@ export async function publishPost(env, post) {
     await tg(env, 'pinChatMessage', { chat_id: chat, message_id: first.message_id, disable_notification: true });
   }
   return res;
+}
+
+// Рисует картинку 4:5 в YandexART и возвращает её как Blob (JPEG).
+export async function yandexArt(env, prompt) {
+  const headers = { Authorization: `Api-Key ${env.YANDEX_API_KEY}`, 'content-type': 'application/json' };
+  const start = await fetch(`${YA}/foundationModels/v1/imageGenerationAsync`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      modelUri: `art://${env.YANDEX_FOLDER_ID}/yandex-art/latest`,
+      generationOptions: { seed: String(Date.now() % 1e9), aspectRatio: { widthRatio: '4', heightRatio: '5' } },
+      messages: [{ weight: '1', text: prompt.slice(0, 500) }],
+    }),
+  });
+  const op = await start.json();
+  if (!op.id) throw new Error(op.message || `HTTP ${start.status}`);
+
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const st = await (await fetch(`${YA}/operations/${op.id}`, { headers })).json();
+    if (st.error) throw new Error(st.error.message || 'ошибка генерации');
+    if (st.done) {
+      const bin = Uint8Array.from(atob(st.response.image), (c) => c.charCodeAt(0));
+      return new Blob([bin], { type: 'image/jpeg' });
+    }
+  }
+  throw new Error('не дождались картинку');
 }
 
 function fmtDate(iso) {
@@ -255,11 +315,20 @@ async function fromAdmin(msg, env) {
   });
 }
 
-async function tg(env, method, body) {
-  const res = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+// Вызов Telegram Bot API. Если переданы files — отправка multipart с загрузкой файлов.
+async function tg(env, method, body, files = {}) {
+  const url = `https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`;
+  if (!Object.keys(files).length) {
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    return res.json();
+  }
+  const form = new FormData();
+  for (const [k, v] of Object.entries(body)) form.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+  for (const [name, blob] of Object.entries(files)) {
+    // Одиночное фото: поле photo=attach://art заменяем самим файлом.
+    if (body.photo === `attach://${name}`) form.set('photo', blob, `${name}.jpg`);
+    else form.append(name, blob, `${name}.jpg`);
+  }
+  const res = await fetch(url, { method: 'POST', body: form });
   return res.json();
 }
