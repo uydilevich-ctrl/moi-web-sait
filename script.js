@@ -5,21 +5,28 @@ document.getElementById('y').textContent=new Date().getFullYear();
 // контакты пока не заполнены: заглушки не ведут никуда
 document.querySelectorAll('[data-todo]').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
-document.querySelectorAll('.section h2,.services li,.project,.steps li,.about-text,.links').forEach(el=>{el.classList.add('reveal');io.observe(el)});
+document.querySelectorAll('.section h2,.services li,.project,.card,.steps li,.about-text,.links').forEach(el=>{el.classList.add('reveal');io.observe(el)});
 
-// Портфолио: окно со всеми слайдами серии
+// Портфолио: окно со всеми работами серии
+const MARKET='Карточки для маркетплейсов';
 const PROJECTS={
-  bag:{title:'Сумка кросс-боди',slides:['Главный слайд','Детали','Размеры','На модели']},
-  candle:{title:'Ароматическая свеча',slides:['Главный слайд','Ноты аромата','Характеристики','Атмосфера']},
-  sweater:{title:'Свитер оверсайз',slides:['Главный слайд','Фактура','Размеры','На модели']}
+  bag:{eyebrow:MARKET,title:'Сумка кросс-боди',items:[['bag-1.jpg','Главный слайд'],['bag-2.jpg','Детали'],['bag-3.jpg','Размеры'],['bag-4.jpg','На модели']]},
+  candle:{eyebrow:MARKET,title:'Ароматическая свеча',items:[['candle-1.jpg','Главный слайд'],['candle-2.jpg','Ноты аромата'],['candle-3.jpg','Характеристики'],['candle-4.jpg','Атмосфера']]},
+  sweater:{eyebrow:MARKET,title:'Свитер оверсайз',items:[['sweater-1.jpg','Главный слайд'],['sweater-2.jpg','Фактура'],['sweater-3.jpg','Размеры'],['sweater-4.jpg','На модели']]},
+  cards:{eyebrow:'Цифровые открытки',title:'Красивые цифровые подарки',items:[['cards-cover.webp','Обложка серии'],['cards-birthday-her.webp','С Днём рождения'],['cards-birthday-him.webp','С Днём рождения, для него'],['cards-mom.webp','Любимой маме'],['cards-baby.webp','С рождением малыша']]}
 };
 const box=document.getElementById('lightbox');
 const boxSlides=box.querySelector('.lightbox-slides');
 document.querySelectorAll('[data-project]').forEach(btn=>btn.addEventListener('click',()=>{
-  const key=btn.dataset.project,p=PROJECTS[key];
+  const p=PROJECTS[btn.dataset.project];
+  box.querySelector('#lightbox-eyebrow').textContent=p.eyebrow;
   box.querySelector('#lightbox-title').textContent=p.title;
-  boxSlides.innerHTML=p.slides.map((cap,i)=>`<figure><img src="assets/work/${key}-${i+1}.jpg" alt="${p.title}: ${cap}"><figcaption>${cap}</figcaption></figure>`).join('');
+  boxSlides.classList.toggle('five',p.items.length===5);
+  boxSlides.innerHTML=p.items.map(([src,cap])=>`<figure><img src="assets/work/${src}" alt="${p.title}: ${cap}"><figcaption>${cap}</figcaption></figure>`).join('');
   box.showModal();
+  // на телефоне сразу прокручиваем к выбранной работе
+  const i=+btn.dataset.index||0;
+  if(i)boxSlides.children[i].scrollIntoView({block:'nearest',inline:'center'});
 }));
 box.querySelector('.lightbox-close').addEventListener('click',()=>box.close());
 box.addEventListener('click',e=>{if(e.target===box)box.close()});

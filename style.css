@@ -59,6 +59,14 @@ h2{font-size:clamp(34px,4.6vw,60px);margin-bottom:64px}
 .project-meta{display:flex;justify-content:space-between;align-items:baseline;margin-top:16px;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
 .project-meta b{font-weight:500}
 .project-meta span{color:var(--muted)}
+.work-head-next{margin-top:80px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.card{all:unset;cursor:pointer;display:block}
+.card-cover{grid-column:span 2;grid-row:span 2}
+.card img{display:block;width:100%;height:100%;aspect-ratio:4/5;object-fit:cover;box-shadow:0 1px 2px rgba(27,27,26,.08);transition:transform .5s ease,box-shadow .5s ease}
+.card:hover img,.card:focus-visible img{transform:translateY(-6px);box-shadow:0 18px 40px -18px rgba(27,27,26,.35)}
+.card:focus-visible{outline:1px solid var(--graphite);outline-offset:6px}
+.lightbox-slides.five{grid-template-columns:repeat(5,1fr)}
 .work-note{margin-top:48px;font-size:14px;color:var(--muted)}
 
 .lightbox{border:0;padding:0;margin:auto;width:min(1180px,calc(100% - 32px));max-height:calc(100% - 32px);background:var(--ivory);color:var(--graphite)}
@@ -102,6 +110,8 @@ h2{font-size:clamp(34px,4.6vw,60px);margin-bottom:64px}
   .section{padding:84px 0}h2{margin-bottom:40px}
   .services{grid-template-columns:1fr}
   .projects{grid-template-columns:1fr 1fr;gap:16px}
+  .cards{grid-template-columns:1fr 1fr;gap:12px}
+  .work-head-next{margin-top:56px}
   .lightbox-slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 20px 24px}
   .lightbox-slides figure{flex:0 0 78%;scroll-snap-align:center}
   .lightbox-head{padding:20px}
