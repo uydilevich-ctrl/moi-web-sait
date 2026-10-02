@@ -67,7 +67,10 @@
   `/art <id или описание>` — нарисовать обложку YandexART и прислать только Марии (проба стиля).
 - 02.10: первый пост в 10:00 не вышел — в Cloudflare не сохранился cron-триггер. Пост
   выложен через `/publish`, cron добавлен заново. После обновления кода проверять триггер.
-- YandexART: ключи ещё НЕ подключены (02.10 начали настройку Yandex Cloud вместе).
+- YandexART (02.10): сервисный аккаунт `marudi-bot` в каталоге `b1ged18fkug6vktfokph`, роли на каталог
+  `ai.imageGeneration.user` + `ai.languageModels.user`, ключи в Cloudflare заданы. Старый API
+  (`imageGenerationAsync`) отвечал «Access denied» — перешли на OpenAI-совместимый
+  `ai.api.cloud.yandex.net/v1/images/generations`, модель `yandex-art-2.0` (как у рабочего «дзена» Марии).
 - После любого изменения `bot/worker.js` Марии нужно вставить новый код в Cloudflare
   (Edit code → Ctrl+A → вставить → Deploy). Изменения `bot/posts.json` и картинок
   НЕ требуют её участия — бот читает их с сайта.

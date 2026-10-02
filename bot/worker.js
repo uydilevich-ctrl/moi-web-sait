@@ -29,7 +29,8 @@ const CRON_STEP_MS = 15 * 60 * 1000;
 // На обложке — только подпись бренда «MARUDI» (защита от копирования), без заголовков.
 const ART_STYLE =
   'Премиальная editorial-фотография, минимализм, мягкий свет, тёплая палитра: слоновая кость, кремовый, бежевый, шампань. Внизу по центру небольшая элегантная надпись «MARUDI» тонким шрифтом с засечками, графитового цвета. Других надписей нет. Без людей и неона.';
-const YA = 'https://llm.api.cloud.yandex.net';
+const YA = 'https://ai.api.cloud.yandex.net';
+const ART_SIZES = ['1024x1792', '1024x1024'];
 
 const TEXT = {
   start:
@@ -214,36 +215,32 @@ function fromBase64(b64) {
   return out;
 }
 
-// Рисует картинку 4:5 в YandexART и возвращает её как Blob (JPEG).
+// Рисует картинку в YandexART (OpenAI-совместимый API Яндекса) и возвращает её как Blob.
+// Сначала вертикальный формат для обложки; если размер не принят (400) — квадрат.
 export async function yandexArt(env, prompt) {
   // При копировании в ключ часто попадают пробелы, переносы строк и кавычки — убираем.
   const clean = (v) => String(v || '').replace(/[\s"'«»]/g, '');
   const key = clean(env.YANDEX_API_KEY);
   const folder = clean(env.YANDEX_FOLDER_ID);
-  const headers = { Authorization: `Api-Key ${key}`, 'x-folder-id': folder, 'content-type': 'application/json' };
-  const start = await fetch(`${YA}/foundationModels/v1/imageGenerationAsync`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      modelUri: `art://${folder}/yandex-art/latest`,
-      generationOptions: { seed: String(Date.now() % 1e9), aspectRatio: { widthRatio: '4', heightRatio: '5' } },
-      messages: [{ weight: '1', text: prompt.slice(0, 500) }],
-    }),
-  });
-  const op = await start.json();
-  if (!op.id) {
+  const headers = { Authorization: `Bearer ${key}`, 'OpenAI-Project': folder, 'content-type': 'application/json' };
+  let res, data;
+  for (const size of ART_SIZES) {
+    res = await fetch(`${YA}/v1/images/generations`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model: `art://${folder}/yandex-art-2.0/latest`, prompt: prompt.slice(0, 500), size }),
+    });
+    data = await res.json().catch(() => ({}));
+    if (res.status !== 400) break;
+  }
+  const b64 = data?.data?.[0]?.b64_json;
+  if (!res.ok || !b64) {
+    const msg = data?.error?.message || data?.message || `HTTP ${res.status}`;
     // Подсказка для диагностики: ID каталога не секретный, ключ не показываем — только длину.
-    throw new Error(`${op.message || `HTTP ${start.status}`} (каталог: ${folder || 'не задан'}, длина ключа: ${key.length})`);
+    throw new Error(`${msg} (каталог: ${folder || 'не задан'}, длина ключа: ${key.length})`);
   }
-
-  // Опрос каждые 2 с, до ~80 с (лимит Cloudflare — 50 запросов за запуск).
-  for (let i = 0; i < 40; i++) {
-    await new Promise((r) => setTimeout(r, 2000));
-    const st = await (await fetch(`${YA}/operations/${op.id}`, { headers })).json();
-    if (st.error) throw new Error(st.error.message || 'ошибка генерации');
-    if (st.done) return new Blob([fromBase64(st.response.image)], { type: 'image/jpeg' });
-  }
-  throw new Error('не дождались картинку');
+  const bytes = fromBase64(b64);
+  return new Blob([bytes], { type: bytes[0] === 0x89 ? 'image/png' : 'image/jpeg' });
 }
 
 function fmtDate(iso) {
