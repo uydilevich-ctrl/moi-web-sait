@@ -124,3 +124,15 @@ console.log('ART TESTS PASSED');
   assert.match(calls.at(-1)[1].text, /⚠️ YandexART: blocked/);
   console.log('ART PREVIEW TESTS PASSED');
 }
+
+// 10. keys are cleaned of spaces/newlines/quotes; error shows folder id and key length only
+{
+  reset();
+  await publishPost({ ...env, YANDEX_API_KEY: ' "K"\n', YANDEX_FOLDER_ID: ' F \n' }, { text: 'x', art: 'p', media: [cover] });
+  const y = calls.find(c => c[0] === 'ya-start');
+  assert.equal(y[1].modelUri, 'art://F/yandex-art/latest'); assert.equal(y[2].Authorization, 'Api-Key K'); assert.equal(y[2]['x-folder-id'], 'F');
+  reset('bad-key');
+  const r10 = await publishPost({ ...env, YANDEX_API_KEY: 'SECRETKEY123' }, { text: 'x', art: 'p', media: [cover] });
+  assert.match(r10.artNote, /Unauthorized \(каталог: F, длина ключа: 12\)/); assert.doesNotMatch(r10.artNote, /SECRETKEY/);
+  console.log('KEY CLEANUP TESTS PASSED');
+}
