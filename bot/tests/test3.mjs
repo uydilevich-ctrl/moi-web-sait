@@ -22,9 +22,11 @@ globalThis.fetch = async (url, opt = {}) => {
   const result = method === 'sendMediaGroup' ? [{ message_id: 7 }] : { message_id: 7 };
   return { json: async () => ({ ok: true, result }) };
 };
-const env = { BOT_TOKEN: 'T', ADMIN_ID: '1', YANDEX_API_KEY: 'K', YANDEX_FOLDER_ID: 'F' };
+let verdicts = [];
+const AI = { run: async (model, inp) => { calls.push(['ai', model, inp]); return { response: verdicts.length ? verdicts.shift() : '{"ok": true, "reason": "чисто"}' }; } };
+const env = { BOT_TOKEN: 'T', ADMIN_ID: '1', YANDEX_API_KEY: 'K', YANDEX_FOLDER_ID: 'F', AI };
 const cover = { type: 'photo', src: 'assets/posts/x.jpg' };
-const reset = (m = 'ok') => { calls = []; polls = 0; mode = m; tgFailUpload = false; };
+const reset = (m = 'ok') => { calls = []; polls = 0; mode = m; tgFailUpload = false; verdicts = []; };
 
 // 1. single cover replaced by art, multipart upload, pin works
 reset();
@@ -151,4 +153,35 @@ console.log('ART TESTS PASSED');
   const all = JSON.parse(fs.readFileSync(new URL('../posts.json', import.meta.url), 'utf8'));
   for (const p of all.filter(p => p.art)) assert.ok(`${p.art}. ${style}`.length <= 500, `${p.id}: промт длиннее 500`);
   console.log('PROMPT LENGTH TESTS PASSED');
+}
+
+// 13. check: image goes to Workers AI with the description; rejected twice -> third accepted
+{
+  reset(); verdicts = ['{"ok": false, "reason": "кривая рука"}', 'Ответ: {"ok": false, "reason": "буквы"}'];
+  const r13 = await publishPost(env, { text: 'x', art: 'конверт', media: [cover] });
+  assert.equal(calls.filter(c => c[0] === 'ya-start').length, 3);
+  const ai = calls.find(c => c[0] === 'ai');
+  assert.match(ai[1], /llama-4-scout/);
+  assert.match(ai[2].messages[0].content[0].text, /конверт/);
+  assert.equal(ai[2].messages[0].content[1].image_url.url, `data:image/jpeg;base64,${IMG}`);
+  assert.match(r13.artNote, /проверена, попытка 3/); assert.equal(calls.find(c => c[0] === 'sendPhoto')[2], true);
+  // all rejected -> ready cover, reasons in the note
+  reset(); verdicts = ['{"ok":false,"reason":"а"}', '{"ok":false,"reason":"б"}', '{"ok":false,"reason":"в"}'];
+  const r13b = await publishPost(env, { text: 'x', art: 'p', media: [cover] });
+  assert.match(r13b.artNote, /не прошли проверку: а; б; в; вышла готовая обложка/);
+  const s13 = calls.find(c => c[0] === 'sendPhoto'); assert.equal(s13[2], false); assert.match(s13[1].photo, /x\.jpg$/);
+  // garbage answer counts as rejection
+  reset(); verdicts = ['не знаю', 'не знаю', 'не знаю'];
+  assert.match((await publishPost(env, { text: 'x', art: 'p', media: [cover] })).artNote, /непонятный ответ/);
+  // no Workers AI -> unchecked art is never published, one try only
+  reset();
+  const r13c = await publishPost({ ...env, AI: undefined }, { text: 'x', art: 'p', media: [cover] });
+  assert.equal(calls.filter(c => c[0] === 'ya-start').length, 1);
+  assert.match(r13c.artNote, /проверка недоступна/); assert.equal(calls.find(c => c[0] === 'sendPhoto')[2], false);
+  // /art preview shows the verdict
+  const { handle } = await import('../worker.js');
+  reset(); verdicts = ['{"ok": false, "reason": "печать в форме розы"}'];
+  await handle({ message: { chat: { id: 1, type: 'private' }, message_id: 1, text: '/art p' } }, env);
+  assert.match(calls.find(c => c[0] === 'sendPhoto')[1].caption, /^❌ Проверка: не публиковать — печать в форме розы/);
+  console.log('ART CHECK TESTS PASSED');
 }
