@@ -71,9 +71,10 @@
   `ai.imageGeneration.user` + `ai.languageModels.user`, ключи в Cloudflare заданы. Старый API
   (`imageGenerationAsync`) отвечал «Access denied» — перешли на OpenAI-совместимый
   `ai.api.cloud.yandex.net/v1/images/generations`, модель `yandex-art-2.0` (как у рабочего «дзена» Марии).
-- После любого изменения `bot/worker.js` Марии нужно вставить новый код в Cloudflare
-  (Edit code → Ctrl+A → вставить → Deploy). 02.10 добавлен `bot/wrangler.toml` (cron в нём) —
-  после подключения Cloudflare Builds к GitHub (см. bot/README.md) код будет обновляться сам. Изменения `bot/posts.json` и картинок
+- **Автодеплой бота** (с 02.10): Cloudflare Workers Builds подключён к GitHub (ветка `main`,
+  путь `bot`, `npx wrangler deploy`, конфиг `bot/wrangler.toml` с cron `*/15`). После merge бот
+  обновляется сам за ~1 мин (check «Workers Builds: marudi-bot» на коммите). Марии вставлять код
+  больше НЕ нужно. Изменения `bot/posts.json` и картинок
   НЕ требуют её участия — бот читает их с сайта.
 
 ## Автопостинг в канал
