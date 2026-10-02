@@ -80,3 +80,23 @@ reset();
 await publishDue(env, Date.parse('2026-10-02T10:00:00+03:00'));
 assert.match(calls.at(-1)[1].text, /Опубликовано.*обложка YandexART/);
 console.log('ART TESTS PASSED');
+
+// 8. /publish command and cron error notification
+{
+  const { handle } = await import('../worker.js');
+  const worker = (await import('../worker.js')).default;
+  reset();
+  await handle({ message: { chat: { id: 1, type: 'private' }, text: '/publish p', message_id: 1 } }, { BOT_TOKEN: 'T', ADMIN_ID: '1' });
+  assert.ok(calls.some(c => c[0] === 'sendPhoto')); assert.match(calls.at(-1)[1].text, /Опубликовано.*Тест/);
+  reset();
+  await handle({ message: { chat: { id: 1, type: 'private' }, text: '/publish', message_id: 1 } }, { BOT_TOKEN: 'T', ADMIN_ID: '1' });
+  assert.match(calls.at(-1)[1].text, /\/publish <id>[\s\S]*p — Тест/); assert.ok(!calls.some(c => c[0] === 'sendPhoto'));
+  // cron: posts.json unavailable -> admin gets a warning instead of silence
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opt) => String(url).includes('posts.json') ? { ok: false, status: 404 } : realFetch(url, opt);
+  reset(); let w;
+  await worker.scheduled({ scheduledTime: Date.now() }, { BOT_TOKEN: 'T', ADMIN_ID: '1' }, { waitUntil: (p) => (w = p) }); await w;
+  assert.match(calls.at(-1)[1].text, /⚠️ Ошибка публикации по расписанию: posts\.json: HTTP 404/);
+  globalThis.fetch = realFetch;
+  console.log('PUBLISH TESTS PASSED');
+}

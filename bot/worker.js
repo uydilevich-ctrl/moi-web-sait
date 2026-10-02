@@ -56,7 +56,8 @@ const TEXT = {
   adminHelp:
     'Вы администратор бота MARUDI.\n\n' +
     'Сообщения клиентов будут приходить сюда. Чтобы ответить клиенту, нажмите «Ответить» на его сообщении и напишите текст — бот перешлёт его от имени MARUDI.\n\n' +
-    'Команда /queue покажет посты, запланированные в канал.',
+    'Команда /queue покажет посты, запланированные в канал.\n' +
+    'Команда /publish <id> опубликует пост из очереди прямо сейчас.',
   replyHint: 'Чтобы ответить клиенту, нажмите «Ответить» на его сообщении.',
   replyFailed: 'Не получилось отправить ответ: клиент мог заблокировать бота.',
   replySent: '✓ Отправлено',
@@ -115,7 +116,14 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(publishDue(env, event.scheduledTime));
+    ctx.waitUntil(
+      publishDue(env, event.scheduledTime).catch(async (e) => {
+        console.error('cron failed', e);
+        if (env.ADMIN_ID) {
+          await tg(env, 'sendMessage', { chat_id: env.ADMIN_ID, text: `⚠️ Ошибка публикации по расписанию: ${e.message}` });
+        }
+      }),
+    );
   },
 };
 
@@ -132,15 +140,17 @@ export async function publishDue(env, now) {
     const at = Date.parse(p.at);
     return at > now - CRON_STEP_MS && at <= now;
   });
+  console.log(`cron ${new Date(now).toISOString()}: постов к публикации — ${due.length}`);
   for (const post of due) {
     const res = await publishPost(env, post);
-    if (env.ADMIN_ID) {
-      const text = res.ok
-        ? `📣 Опубликовано в канале: «${post.title || post.id}»${res.artNote || ''}`
-        : `Не получилось опубликовать «${post.title || post.id}»: ${res.description}`;
-      await tg(env, 'sendMessage', { chat_id: env.ADMIN_ID, text });
-    }
+    if (env.ADMIN_ID) await tg(env, 'sendMessage', { chat_id: env.ADMIN_ID, text: resultText(post, res) });
   }
+}
+
+function resultText(post, res) {
+  return res.ok
+    ? `📣 Опубликовано в канале: «${post.title || post.id}»${res.artNote || ''}`
+    : `Не получилось опубликовать «${post.title || post.id}»: ${res.description}`;
 }
 
 export async function publishPost(env, post) {
@@ -291,6 +301,24 @@ async function toAdmin(msg, env, adminId) {
 }
 
 async function fromAdmin(msg, env) {
+  // /publish <id> — опубликовать пост из очереди прямо сейчас (для проверки и пропущенных постов)
+  if ((msg.text || '').startsWith('/publish')) {
+    const id = msg.text.split(/\s+/)[1];
+    let text;
+    try {
+      const posts = await loadPosts();
+      const post = posts.find((p) => p.id === id);
+      if (!post) {
+        text = 'Укажите пост: /publish <id>\n\n' + posts.map((p) => `${p.id} — ${p.title || ''}`).join('\n');
+      } else {
+        text = resultText(post, await publishPost(env, post));
+      }
+    } catch (e) {
+      text = `⚠️ Ошибка: ${e.message}`;
+    }
+    await tg(env, 'sendMessage', { chat_id: msg.chat.id, text });
+    return;
+  }
   if (msg.text === '/queue') {
     const now = Date.now();
     const next = (await loadPosts()).filter((p) => Date.parse(p.at) > now).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
