@@ -57,7 +57,8 @@ const TEXT = {
     'Вы администратор бота MARUDI.\n\n' +
     'Сообщения клиентов будут приходить сюда. Чтобы ответить клиенту, нажмите «Ответить» на его сообщении и напишите текст — бот перешлёт его от имени MARUDI.\n\n' +
     'Команда /queue покажет посты, запланированные в канал.\n' +
-    'Команда /publish <id> опубликует пост из очереди прямо сейчас.',
+    'Команда /publish <id> опубликует пост из очереди прямо сейчас.\n' +
+    'Команда /art <id> нарисует обложку поста в YandexART и пришлёт только вам.',
   replyHint: 'Чтобы ответить клиенту, нажмите «Ответить» на его сообщении.',
   replyFailed: 'Не получилось отправить ответ: клиент мог заблокировать бота.',
   replySent: '✓ Отправлено',
@@ -204,6 +205,15 @@ export async function publishPost(env, post) {
   return res;
 }
 
+// Быстрое декодирование base64 (на бесплатном Cloudflare мало процессорного времени).
+function fromBase64(b64) {
+  if (Uint8Array.fromBase64) return Uint8Array.fromBase64(b64);
+  const str = atob(b64);
+  const out = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) out[i] = str.charCodeAt(i);
+  return out;
+}
+
 // Рисует картинку 4:5 в YandexART и возвращает её как Blob (JPEG).
 export async function yandexArt(env, prompt) {
   const headers = { Authorization: `Api-Key ${env.YANDEX_API_KEY}`, 'content-type': 'application/json' };
@@ -219,14 +229,12 @@ export async function yandexArt(env, prompt) {
   const op = await start.json();
   if (!op.id) throw new Error(op.message || `HTTP ${start.status}`);
 
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 5000));
+  // Опрос каждые 2 с, до ~80 с (лимит Cloudflare — 50 запросов за запуск).
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
     const st = await (await fetch(`${YA}/operations/${op.id}`, { headers })).json();
     if (st.error) throw new Error(st.error.message || 'ошибка генерации');
-    if (st.done) {
-      const bin = Uint8Array.from(atob(st.response.image), (c) => c.charCodeAt(0));
-      return new Blob([bin], { type: 'image/jpeg' });
-    }
+    if (st.done) return new Blob([fromBase64(st.response.image)], { type: 'image/jpeg' });
   }
   throw new Error('не дождались картинку');
 }
@@ -301,6 +309,29 @@ async function toAdmin(msg, env, adminId) {
 }
 
 async function fromAdmin(msg, env) {
+  // /art <id поста или своё описание> — нарисовать обложку и прислать только Марии
+  if ((msg.text || '').startsWith('/art')) {
+    const arg = msg.text.slice(4).trim();
+    if (!env.YANDEX_API_KEY || !env.YANDEX_FOLDER_ID) {
+      await tg(env, 'sendMessage', { chat_id: msg.chat.id, text: 'Ключи YandexART не заданы в Cloudflare.' });
+      return;
+    }
+    let prompt = arg;
+    try {
+      const post = arg && (await loadPosts()).find((p) => p.id === arg);
+      if (post) prompt = post.art;
+      if (!prompt) {
+        await tg(env, 'sendMessage', { chat_id: msg.chat.id, text: 'Напишите: /art <id поста> или /art <описание картинки>' });
+        return;
+      }
+      await tg(env, 'sendMessage', { chat_id: msg.chat.id, text: '🎨 Рисую обложку, это займёт до минуты…' });
+      const art = await yandexArt(env, `${prompt}. ${ART_STYLE}`);
+      await tg(env, 'sendPhoto', { chat_id: msg.chat.id, photo: 'attach://art', caption: `Описание: ${prompt}`.slice(0, 1024) }, { art });
+    } catch (e) {
+      await tg(env, 'sendMessage', { chat_id: msg.chat.id, text: `⚠️ YandexART: ${e.message}` });
+    }
+    return;
+  }
   // /publish <id> — опубликовать пост из очереди прямо сейчас (для проверки и пропущенных постов)
   if ((msg.text || '').startsWith('/publish')) {
     const id = msg.text.split(/\s+/)[1];
