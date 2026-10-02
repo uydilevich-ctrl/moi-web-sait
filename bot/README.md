@@ -53,11 +53,18 @@
 ## Обложки через YandexART (необязательно)
 
 Если у поста в `posts.json` есть поле `art` (короткое описание картинки, ~120–180 символов),
-бот при публикации рисует новую обложку 4:5 в YandexART (к описанию добавляется стиль
+бот при публикации рисует новую обложку в YandexART (вертикальную 1024×1792, если не принята — квадрат) (к описанию добавляется стиль
 MARUDI `ART_STYLE`: тёплая палитра и небольшая подпись «MARUDI» внизу, других надписей нет) и ставит её первым фото вместо готовой. Если ключей нет или генерация
 не удалась — выходит готовая обложка, а Марии приходит пояснение.
 
 Настройка: Cloudflare → Worker → Settings → Variables and Secrets:
 - `YANDEX_API_KEY` — тип Secret, API-ключ сервисного аккаунта Yandex Cloud
-  (роль `ai.imageGeneration.user`);
+  (роли на **каталог**: `ai.imageGeneration.user` и `ai.languageModels.user`);
 - `YANDEX_FOLDER_ID` — тип Text, ID каталога Yandex Cloud.
+
+Запрос: `POST https://ai.api.cloud.yandex.net/v1/images/generations`, заголовки
+`Authorization: Bearer <ключ>` и `OpenAI-Project: <ID каталога>`, модель
+`art://<ID каталога>/yandex-art-2.0/latest`. Ответ сразу содержит картинку (`data[0].b64_json`).
+Старый путь `foundationModels/v1/imageGenerationAsync` отвечал «Access … denied» (02.10).
+Частые ошибки: ID не того каталога, где выдана роль; ключ личного аккаунта вместо сервисного;
+роль выдана не на каталог; не привязан платёжный аккаунт.
