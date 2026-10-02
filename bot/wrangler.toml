@@ -1,0 +1,12 @@
+# Настройки для автоматического деплоя бота из GitHub (Cloudflare → Worker → Settings → Builds).
+# Секреты (BOT_TOKEN, WEBHOOK_SECRET, YANDEX_API_KEY) и переменные (ADMIN_ID, YANDEX_FOLDER_ID)
+# хранятся в Cloudflare и здесь не указываются; keep_vars не даёт деплою их стереть.
+name = "marudi-bot"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+keep_vars = true
+
+# Расписание публикаций — раз в 15 минут. Теперь оно задаётся здесь и не пропадёт при обновлении кода.
+[triggers]
+crons = ["*/15 * * * *"]

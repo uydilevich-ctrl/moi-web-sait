@@ -72,7 +72,8 @@
   (`imageGenerationAsync`) отвечал «Access denied» — перешли на OpenAI-совместимый
   `ai.api.cloud.yandex.net/v1/images/generations`, модель `yandex-art-2.0` (как у рабочего «дзена» Марии).
 - После любого изменения `bot/worker.js` Марии нужно вставить новый код в Cloudflare
-  (Edit code → Ctrl+A → вставить → Deploy). Изменения `bot/posts.json` и картинок
+  (Edit code → Ctrl+A → вставить → Deploy). 02.10 добавлен `bot/wrangler.toml` (cron в нём) —
+  после подключения Cloudflare Builds к GitHub (см. bot/README.md) код будет обновляться сам. Изменения `bot/posts.json` и картинок
   НЕ требуют её участия — бот читает их с сайта.
 
 ## Автопостинг в канал

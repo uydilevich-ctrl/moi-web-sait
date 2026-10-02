@@ -68,3 +68,11 @@ MARUDI `ART_STYLE`: тёплая палитра, светлый фон, без �
 Старый путь `foundationModels/v1/imageGenerationAsync` отвечал «Access … denied» (02.10).
 Частые ошибки: ID не того каталога, где выдана роль; ключ личного аккаунта вместо сервисного;
 роль выдана не на каталог; не привязан платёжный аккаунт.
+
+## Автоматическое обновление кода из GitHub
+
+`wrangler.toml` описывает Worker (имя, файл, cron раз в 15 минут). Если подключить
+Cloudflare к GitHub, бот обновляется сам после каждого изменения в `main`:
+Worker → Settings → Builds → Connect → GitHub → репозиторий `moi-web-sait`, ветка `main`,
+Root directory: `bot`, Deploy command: `npx wrangler deploy` → Save.
+Секреты и переменные остаются в Cloudflare (`keep_vars = true`).
