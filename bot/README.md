@@ -76,3 +76,10 @@ Cloudflare к GitHub, бот обновляется сам после каждо
 Worker → Settings → Builds → Connect → GitHub → репозиторий `moi-web-sait`, ветка `main`,
 Root directory: `bot`, Deploy command: `npx wrangler deploy` → Save.
 Секреты и переменные остаются в Cloudflare (`keep_vars = true`).
+
+## Проверка обложек перед публикацией
+
+Каждую картинку YandexART бот показывает нейросети Cloudflare Workers AI (binding `AI` в
+`wrangler.toml`, ключи не нужны). Брак — кривые руки и предметы, буквы и логотипы, несоответствие
+описанию, тёмные или кислотные цвета. Бот делает до 3 попыток; если все забракованы — выходит
+готовая обложка, а Марии приходит причина. В `/art` вердикт виден в подписи к картинке.

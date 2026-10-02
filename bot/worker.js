@@ -31,6 +31,9 @@ const ART_STYLE =
   'Редакционная фотография, тёплая нейтральная палитра: слоновая кость, крем, светлый беж, шампань; светлый фон, мягкий дневной свет; без тёмных и ярких цветов, без надписей.';
 const YA = 'https://ai.api.cloud.yandex.net';
 const ART_SIZES = ['1792x1024', '1024x1024'];
+// Проверка обложки «глазами» нейросети Cloudflare Workers AI перед публикацией.
+const CHECK_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct';
+const ART_TRIES = 3;
 
 const TEXT = {
   start:
@@ -165,12 +168,17 @@ export async function publishPost(env, post) {
 
   if (post.art && env.YANDEX_API_KEY && env.YANDEX_FOLDER_ID) {
     try {
-      files.art = await yandexArt(env, `${post.art}. ${ART_STYLE}`);
-      const cover = { type: 'photo', media: 'attach://art' };
-      // Новая обложка встаёт на место готовой (первое фото) или добавляется первой.
-      if (media.length && media[0].type === 'photo') media[0] = cover;
-      else media.unshift(cover);
-      artNote = ' (обложка YandexART)';
+      const r = await artChecked(env, post.art);
+      if (r.img) {
+        files.art = r.img;
+        const cover = { type: 'photo', media: 'attach://art' };
+        // Новая обложка встаёт на место готовой (первое фото) или добавляется первой.
+        if (media.length && media[0].type === 'photo') media[0] = cover;
+        else media.unshift(cover);
+        artNote = ` (обложка YandexART, проверена, попытка ${r.tries})`;
+      } else {
+        artNote = ` (обложки YandexART не прошли проверку: ${r.reasons.join('; ')}; вышла готовая обложка)`;
+      }
     } catch (e) {
       artNote = ` (YandexART не сработал: ${e.message}; вышла готовая обложка)`;
     }
@@ -241,7 +249,51 @@ export async function yandexArt(env, prompt) {
     throw new Error(`${msg} (каталог: ${folder || 'не задан'}, длина ключа: ${key.length})`);
   }
   const bytes = fromBase64(b64);
-  return new Blob([bytes], { type: bytes[0] === 0x89 ? 'image/png' : 'image/jpeg' });
+  const blob = new Blob([bytes], { type: bytes[0] === 0x89 ? 'image/png' : 'image/jpeg' });
+  blob.b64 = b64; // пригодится для проверки, без повторного кодирования
+  return blob;
+}
+
+// Строгая проверка картинки: кривые руки и предметы, буквы, несоответствие описанию.
+// Возвращает { ok, reason }. Если проверка недоступна — ok: false (непроверенное не публикуем).
+export async function checkArt(env, img, description) {
+  if (!env.AI) return { ok: false, reason: 'проверка недоступна (нет Workers AI)' };
+  const ask =
+    'You are a strict photo editor for a premium brand Telegram channel. Check this AI-generated cover image. ' +
+    `Intended description (Russian): "${description}". ` +
+    'REJECT if ANY of these: deformed or extra fingers/hands/limbs, unnatural poses; any text, letters, numbers, ' +
+    'logos or watermarks; melted, broken or physically impossible objects; the main object does not match the description ' +
+    '(e.g. wrong shape or a literal flower where a color was meant); dark, gloomy or neon colors; cluttered composition. ' +
+    'Otherwise ACCEPT. Answer ONLY with JSON: {"ok": true or false, "reason": "<short reason in Russian>"}';
+  const out = await env.AI.run(CHECK_MODEL, {
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: ask },
+      { type: 'image_url', image_url: { url: `data:${img.type};base64,${img.b64}` } },
+    ] }],
+    max_tokens: 200,
+  });
+  const raw = out?.response;
+  let v = typeof raw === 'object' && raw ? raw : null;
+  if (!v) {
+    const m = String(raw || '').match(/\{[\s\S]*\}/);
+    try { v = m && JSON.parse(m[0]); } catch { v = null; }
+  }
+  if (!v || typeof v.ok !== 'boolean') return { ok: false, reason: `непонятный ответ проверки: ${String(raw).slice(0, 100)}` };
+  return { ok: v.ok, reason: String(v.reason || '') };
+}
+
+// Рисует и проверяет до ART_TRIES раз; возвращает { img } или { reasons } при неудаче.
+async function artChecked(env, description) {
+  const reasons = [];
+  for (let i = 0; i < ART_TRIES; i++) {
+    const img = await yandexArt(env, `${description}. ${ART_STYLE}`);
+    let v;
+    try { v = await checkArt(env, img, description); } catch (e) { v = { ok: false, reason: `ошибка проверки: ${e.message}` }; }
+    if (v.ok) return { img, tries: i + 1 };
+    reasons.push(v.reason);
+    if (!env.AI) break;
+  }
+  return { reasons };
 }
 
 function fmtDate(iso) {
@@ -331,7 +383,10 @@ async function fromAdmin(msg, env) {
       }
       await tg(env, 'sendMessage', { chat_id: msg.chat.id, text: '🎨 Рисую обложку, это займёт до минуты…' });
       const art = await yandexArt(env, `${prompt}. ${ART_STYLE}`);
-      await tg(env, 'sendPhoto', { chat_id: msg.chat.id, photo: 'attach://art', caption: `Описание: ${prompt}`.slice(0, 1024) }, { art });
+      let v;
+      try { v = await checkArt(env, art, prompt); } catch (e) { v = { ok: false, reason: `ошибка проверки: ${e.message}` }; }
+      const verdict = v.ok ? `✅ Проверка: можно публиковать. ${v.reason}` : `❌ Проверка: не публиковать — ${v.reason}`;
+      await tg(env, 'sendPhoto', { chat_id: msg.chat.id, photo: 'attach://art', caption: `${verdict}\n\nОписание: ${prompt}`.slice(0, 1024) }, { art });
     } catch (e) {
       await tg(env, 'sendMessage', { chat_id: msg.chat.id, text: `⚠️ YandexART: ${e.message}` });
     }
