@@ -100,3 +100,27 @@ console.log('ART TESTS PASSED');
   globalThis.fetch = realFetch;
   console.log('PUBLISH TESTS PASSED');
 }
+
+// 9. /art: preview to admin only, by post id or free text; base64 decoded correctly
+{
+  const { handle } = await import('../worker.js');
+  const adm = { chat: { id: 1, type: 'private' }, message_id: 1 };
+  reset();
+  await handle({ message: { ...adm, text: '/art p' } }, env);
+  const ya9 = calls.find(c => c[0] === 'ya-start');
+  assert.match(ya9[1].messages[0].text, /^p\. Премиальная/);
+  const ph = calls.find(c => c[0] === 'sendPhoto');
+  assert.equal(ph[1].chat_id, '1'); assert.ok(ph[1].photo instanceof Blob);
+  assert.equal(Buffer.from(await ph[1].photo.arrayBuffer()).toString(), 'fakejpeg');
+  assert.ok(!calls.some(c => c[1].chat_id === '@marudi_studio'));
+  reset();
+  await handle({ message: { ...adm, text: '/art закат над морем' } }, env);
+  assert.match(calls.find(c => c[0] === 'ya-start')[1].messages[0].text, /^закат над морем\./);
+  reset();
+  await handle({ message: { ...adm, text: '/art p' } }, { BOT_TOKEN: 'T', ADMIN_ID: '1' });
+  assert.match(calls.at(-1)[1].text, /Ключи YandexART не заданы/);
+  reset('gen-error');
+  await handle({ message: { ...adm, text: '/art p' } }, env);
+  assert.match(calls.at(-1)[1].text, /⚠️ YandexART: blocked/);
+  console.log('ART PREVIEW TESTS PASSED');
+}
