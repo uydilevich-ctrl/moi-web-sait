@@ -9,6 +9,7 @@ globalThis.fetch = async (url, opt = {}) => {
     const b = JSON.parse(opt.body);
     calls.push(['ya-start', b, opt.headers]);
     if (mode === 'bad-key') return { ok: false, status: 401, json: async () => ({ error: { message: 'Unauthorized' } }) };
+    if (mode === 'no-wide' && b.size !== '1024x1024') return { ok: false, status: 400, json: async () => ({ error: { message: 'bad size' } }) };
     if (mode === 'gen-error') return { ok: false, status: 403, json: async () => ({ message: 'blocked' }) };
     return { ok: true, status: 200, json: async () => ({ data: [{ b64_json: IMG }] }) };
   }
@@ -31,8 +32,8 @@ let r = await publishPost(env, { text: 'Привет', art: 'свеча на п�
 assert.ok(r.ok); assert.match(r.artNote, /YandexART/);
 const ya = calls.find(c => c[0] === 'ya-start');
 assert.equal(ya[1].model, 'art://F/yandex-art-2.0/latest'); assert.equal(ya[2].Authorization, 'Bearer K');
-assert.equal(ya[2]['OpenAI-Project'], 'F'); assert.equal(ya[1].size, '1024x1024');
-assert.match(ya[1].prompt, /свеча на подоконнике.*Без текста, букв и надписей/);
+assert.equal(ya[2]['OpenAI-Project'], 'F'); assert.equal(ya[1].size, '1792x1024');
+assert.match(ya[1].prompt, /свеча на подоконнике\. Редакционная фотография.*без надписей\.$/);
 const sp = calls.find(c => c[0] === 'sendPhoto');
 assert.equal(sp[2], true); assert.ok(sp[1].photo instanceof Blob); assert.equal(sp[1].caption, 'Привет');
 assert.ok(calls.some(c => c[0] === 'pinChatMessage'));
@@ -104,7 +105,7 @@ console.log('ART TESTS PASSED');
   reset();
   await handle({ message: { ...adm, text: '/art p' } }, env);
   const ya9 = calls.find(c => c[0] === 'ya-start');
-  assert.match(ya9[1].prompt, /^p\. Фотореалистичная/);
+  assert.match(ya9[1].prompt, /^p\. Редакционная/);
   const ph = calls.find(c => c[0] === 'sendPhoto');
   assert.equal(ph[1].chat_id, '1'); assert.ok(ph[1].photo instanceof Blob);
   assert.equal(Buffer.from(await ph[1].photo.arrayBuffer()).toString(), 'fakejpeg');
@@ -131,4 +132,23 @@ console.log('ART TESTS PASSED');
   const r10 = await publishPost({ ...env, YANDEX_API_KEY: 'SECRETKEY123' }, { text: 'x', art: 'p', media: [cover] });
   assert.match(r10.artNote, /Unauthorized \(каталог: F, длина ключа: 12\)/); assert.doesNotMatch(r10.artNote, /SECRETKEY/);
   console.log('KEY CLEANUP TESTS PASSED');
+}
+
+// 11. wide size rejected (400) -> retry with square, art still used
+{
+  reset('no-wide');
+  const r11 = await publishPost(env, { text: 'x', art: 'p', media: [cover] });
+  assert.deepEqual(calls.filter(c => c[0] === 'ya-start').map(c => c[1].size), ['1792x1024', '1024x1024']);
+  assert.doesNotMatch(r11.artNote, /не сработал/); assert.equal(calls.find(c => c[0] === 'sendPhoto')[2], true);
+  console.log('SIZE FALLBACK TESTS PASSED');
+}
+
+// 12. every art prompt + style fits YandexART's 500-char limit (otherwise the style is cut off)
+{
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../worker.js', import.meta.url), 'utf8');
+  const style = src.match(/const ART_STYLE =\s*'([^']*)'/)[1];
+  const all = JSON.parse(fs.readFileSync(new URL('../posts.json', import.meta.url), 'utf8'));
+  for (const p of all.filter(p => p.art)) assert.ok(`${p.art}. ${style}`.length <= 500, `${p.id}: промт длиннее 500`);
+  console.log('PROMPT LENGTH TESTS PASSED');
 }
