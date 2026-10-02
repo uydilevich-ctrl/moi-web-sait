@@ -216,18 +216,25 @@ function fromBase64(b64) {
 
 // Рисует картинку 4:5 в YandexART и возвращает её как Blob (JPEG).
 export async function yandexArt(env, prompt) {
-  const headers = { Authorization: `Api-Key ${env.YANDEX_API_KEY}`, 'content-type': 'application/json' };
+  // При копировании в ключ часто попадают пробелы, переносы строк и кавычки — убираем.
+  const clean = (v) => String(v || '').replace(/[\s"'«»]/g, '');
+  const key = clean(env.YANDEX_API_KEY);
+  const folder = clean(env.YANDEX_FOLDER_ID);
+  const headers = { Authorization: `Api-Key ${key}`, 'x-folder-id': folder, 'content-type': 'application/json' };
   const start = await fetch(`${YA}/foundationModels/v1/imageGenerationAsync`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      modelUri: `art://${env.YANDEX_FOLDER_ID}/yandex-art/latest`,
+      modelUri: `art://${folder}/yandex-art/latest`,
       generationOptions: { seed: String(Date.now() % 1e9), aspectRatio: { widthRatio: '4', heightRatio: '5' } },
       messages: [{ weight: '1', text: prompt.slice(0, 500) }],
     }),
   });
   const op = await start.json();
-  if (!op.id) throw new Error(op.message || `HTTP ${start.status}`);
+  if (!op.id) {
+    // Подсказка для диагностики: ID каталога не секретный, ключ не показываем — только длину.
+    throw new Error(`${op.message || `HTTP ${start.status}`} (каталог: ${folder || 'не задан'}, длина ключа: ${key.length})`);
+  }
 
   // Опрос каждые 2 с, до ~80 с (лимит Cloudflare — 50 запросов за запуск).
   for (let i = 0; i < 40; i++) {
