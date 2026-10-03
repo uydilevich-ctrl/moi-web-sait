@@ -30,7 +30,7 @@ for(const [now,exp] of [[t1,1],[t1+14*60e3,1],[t1-60e3,0],[t1+15*60e3,0]]){
 }
 calls=[];await publishDue(env,t1);
 assert.deepEqual(calls.map(c=>c[0]),['sendPhoto','pinChatMessage','sendMessage']);
-assert.equal(calls[0][1].chat_id,'@marudi_studio');assert.equal(calls[0][1].photo,'https://uydilevich-ctrl.github.io/moi-web-sait/assets/posts/post-1-znakomstvo.jpg');
+assert.equal(calls[0][1].chat_id,'@marudi_studio');assert.equal(calls[0][1].photo,'https://marudi.pages.dev/assets/posts/post-1-znakomstvo.jpg');
 assert.match(calls[0][1].caption,/Мария/);assert.equal(calls[1][1].message_id,50);assert.match(calls[2][1].text,/Опубликовано/);
 // album
 calls=[];await publishPost(env,posts.find(p=>p.id==='02-marketpleisy'));

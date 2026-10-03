@@ -20,7 +20,7 @@
 // рисует новую обложку и ставит её первой вместо готовой. Если не получилось —
 // публикует с готовой обложкой и сообщает Марии.
 
-const SITE = 'https://uydilevich-ctrl.github.io/moi-web-sait/';
+const SITE = 'https://marudi.pages.dev/';
 const CHANNEL = 'https://t.me/marudi_studio';
 const CHANNEL_ID = '@marudi_studio';
 const CRON_STEP_MS = 15 * 60 * 1000;
