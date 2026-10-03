@@ -12,6 +12,8 @@ assert.equal(c[0][0],'sendMessage');assert.ok(c[0][1].reply_markup);
 // menu callback
 c=await run({callback_query:{id:'q',data:'services',message:{chat:cl}}});
 assert.deepEqual(c.map(x=>x[0]),['answerCallbackQuery','sendMessage']);assert.match(c[1][1].text,/Карточки/);
+c=await run({callback_query:{id:'q',data:'prices',message:{chat:cl}}});
+assert.match(c[1][1].text,/Предоплата 50%|предоплата 50%/);assert.match(c[1][1].text,/сайты до 3/);
 // client text -> admin with tag, ack
 c=await run({message:{chat:cl,from,text:'Нужны карточки',message_id:2}});
 assert.equal(c[0][1].chat_id,'100');assert.match(c[0][1].text,/Анна \(@anna\)  #id200/);assert.match(c[0][1].text,/Нужны карточки/);
