@@ -45,9 +45,12 @@
 
 ## Сайт
 - Репозиторий `uydilevich-ctrl/moi-web-sait`, статический сайт: `index.html`, `style.css`,
-  `script.js`. Сейчас на GitHub Pages: https://uydilevich-ctrl.github.io/moi-web-sait/
-- Скоро переезд на **Vercel** (см. PLAN.md) — после переезда поменять адрес сайта в
-  `bot/worker.js` (константа `SITE`), в текстах `bot/posts.json` и в CLAUDE.md.
+  `script.js`. **Адрес сайта: https://marudi.pages.dev** (Cloudflare Pages, проект `marudi`, с 03.10;
+  обновляется сам из `main`; превью для веток). Vercel отклонили: бесплатный тариф только для
+  некоммерческих сайтов. Старый адрес https://uydilevich-ctrl.github.io/moi-web-sait/ (GitHub Pages)
+  работает как запасной. `SITE` в `bot/worker.js` и ссылки в `bot/posts.json` — на marudi.pages.dev.
+  `marudi.pages.dev` добавлен в Allowed domains среды Claude — можно проверять сайт curl/Playwright.
+  Дальше по желанию: свой домен (marudi.ru и т. п.) в Cloudflare Pages → Custom domains.
 - Слоган: «Превращаю идеи в визуал», подзаголовок «AI-контент • сайты • видео».
 - Главный экран: видео-петля `assets/video/hero.(mp4|webm)` «Идея материализуется»
   (точка → линия → скульптура → editorial-кадр → окно сайта с галереей → точка).
