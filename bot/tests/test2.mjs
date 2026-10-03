@@ -33,10 +33,10 @@ assert.deepEqual(calls.map(c=>c[0]),['sendPhoto','pinChatMessage','sendMessage']
 assert.equal(calls[0][1].chat_id,'@marudi_studio');assert.equal(calls[0][1].photo,'https://uydilevich-ctrl.github.io/moi-web-sait/assets/posts/post-1-znakomstvo.jpg');
 assert.match(calls[0][1].caption,/Мария/);assert.equal(calls[1][1].message_id,50);assert.match(calls[2][1].text,/Опубликовано/);
 // album
-calls=[];await publishPost(env,posts[1]);
+calls=[];await publishPost(env,posts.find(p=>p.id==='02-marketpleisy'));
 assert.equal(calls[0][0],'sendMediaGroup');assert.equal(calls[0][1].media.length,4);assert.ok(calls[0][1].media[0].caption);assert.ok(!calls[0][1].media[1].caption);
 // video
-calls=[];await publishPost(env,posts[2]);
+calls=[];await publishPost(env,posts.find(p=>p.id==='03-video'));
 assert.equal(calls[0][0],'sendVideo');assert.match(calls[0][1].video,/video-peonies\.mp4$/);
 // long text -> media then text
 calls=[];await publishPost(env,{text:'x'.repeat(1500),media:[{type:'photo',src:'a.jpg'}]});
