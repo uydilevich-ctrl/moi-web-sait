@@ -185,3 +185,15 @@ console.log('ART TESTS PASSED');
   assert.match(calls.find(c => c[0] === 'sendPhoto')[1].caption, /^❌ Проверка: не публиковать — печать в форме розы/);
   console.log('ART CHECK TESTS PASSED');
 }
+
+// 14. voice rules for queued posts (from 05.10): no long dash, no "!", no straight quotes, no stock phrases
+{
+  const fs = await import('node:fs');
+  const all = JSON.parse(fs.readFileSync(new URL('../posts.json', import.meta.url), 'utf8'));
+  const stamps = ['стоит отметить', 'в современном мире', 'безусловно', 'важно понимать', 'не секрет', 'лайфхак', 'является', 'данный'];
+  for (const p of all.filter(p => p.at >= '2026-10-05')) {
+    assert.ok(!/[—!"]/.test(p.text), `${p.id}: «—», «!» или прямые кавычки`);
+    for (const s of stamps) assert.ok(!new RegExp(`(^|[^а-яё])${s}`, 'i').test(p.text), `${p.id}: штамп «${s}»`);
+  }
+  console.log('VOICE TESTS PASSED');
+}
